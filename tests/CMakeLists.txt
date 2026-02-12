@@ -11,8 +11,22 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 if(RESOURCE_POOL_USE_SYSTEM_GOOGLETEST)
-    find_package(GTest)
-    find_package(GMock)
+    find_package(GTest CONFIG REQUIRED)
+    if(TARGET GTest::gtest)
+        set(RESOURCE_POOL_GTEST_TARGET GTest::gtest)
+    elseif(TARGET GTest::GTest)
+        set(RESOURCE_POOL_GTEST_TARGET GTest::GTest)
+    else()
+        message(FATAL_ERROR "Unable to find a suitable GTest target")
+    endif()
+
+    if(TARGET GTest::gmock)
+        set(RESOURCE_POOL_GMOCK_TARGET GTest::gmock)
+    elseif(TARGET GMock::GMock)
+        set(RESOURCE_POOL_GMOCK_TARGET GMock::GMock)
+    else()
+        message(FATAL_ERROR "Unable to find a suitable GMock target")
+    endif()
 else()
     include(FetchContent)
     FetchContent_Declare(googletest
@@ -22,8 +36,8 @@ else()
     )
     FetchContent_MakeAvailable(googletest)
 
-    add_library(GTest::GTest ALIAS gtest)
-    add_library(GMock::GMock ALIAS gmock)
+    set(RESOURCE_POOL_GTEST_TARGET gtest)
+    set(RESOURCE_POOL_GMOCK_TARGET gmock)
 endif()
 
 add_executable(resource_pool_test
@@ -41,8 +55,8 @@ add_executable(resource_pool_test
 
 set(LIBRARIES
     pthread
-    GTest::GTest
-    GMock::GMock
+    ${RESOURCE_POOL_GTEST_TARGET}
+    ${RESOURCE_POOL_GMOCK_TARGET}
     Boost::coroutine
     Boost::context
     elsid::resource_pool
