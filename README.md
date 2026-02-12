@@ -9,7 +9,22 @@ Supports sync and async interfaces. Based on boost.
 
 * **CMake** >= 3.12
 * **GCC** or **Clang** C++ compilers with C++17 support.
-* **Boost** >= 1.66
+* **Boost** >= 1.74
+
+CI validates Boost 1.74 (Ubuntu 22.04) and a newer distro Boost line (Ubuntu 24.04).
+
+## Asio migration notes
+
+The async implementation was updated for newer Boost.Asio executor/token APIs.
+
+* Public pool API remains the same (`get_auto_waste` / `get_auto_recycle` signatures are unchanged).
+* Internally async initiation now uses `boost::asio::async_initiate`.
+* Executor storage moved to `boost::asio::any_io_executor` for compatibility with modern Asio executor model.
+* Strand usage in examples was updated to `boost::asio::make_strand`.
+
+### Breaking changes
+
+* **Boost < 1.74 is no longer supported.**
 
 ## Build
 
@@ -22,6 +37,7 @@ make -j $(nproc)
 ctest -V
 examples/sync_pool
 examples/async_pool
+examples/async_regression
 benchmarks/resource_pool_benchmark_async
 ```
 

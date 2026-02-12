@@ -4,7 +4,7 @@ message(STATUS "CMAKE_CURRENT_LIST_DIR: ${CMAKE_CURRENT_LIST_DIR}")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Werror")
 
-find_package(Boost COMPONENTS coroutine context REQUIRED)
+find_package(Boost 1.74 COMPONENTS coroutine context REQUIRED)
 
 include_directories(SYSTEM ${RESOURCE_POOL_DEPENDENCY_INCLUDE_DIRS})
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
