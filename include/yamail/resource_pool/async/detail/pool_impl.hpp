@@ -10,6 +10,7 @@
 #include <boost/asio/dispatch.hpp>
 #include <boost/asio/post.hpp>
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/any_io_executor.hpp>
 
 #include <cassert>
 #include <type_traits>
@@ -95,7 +96,7 @@ private:
 template <class T>
 class list_iterator_handler {
 public:
-    using executor_type = asio::executor;
+    using executor_type = asio::any_io_executor;
 
     list_iterator_handler() = default;
 
@@ -123,7 +124,7 @@ public:
     }
 
 private:
-    asio::executor executor;
+    executor_type executor;
     std::unique_ptr<base_list_iterator_handler_impl<T>> impl;
 };
 
@@ -403,32 +404,6 @@ std::size_t pool_impl<V, M, I, Q>::assert_capacity(std::size_t value) {
     }
     return value;
 }
-
-using boost::asio::async_result;
-template<typename CompletionToken, typename Signature>
-struct handler_type {
-    using type = typename boost::asio::async_result<CompletionToken, Signature>::completion_handler_type;
-};
-
-#if BOOST_VERSION < 106600
-template <typename CompletionToken, typename Signature>
-struct async_completion {
-    explicit async_completion(CompletionToken& token)
-    : completion_handler(std::move(token)),
-      result(completion_handler) {
-    }
-
-    using completion_handler_type = typename handler_type<CompletionToken, Signature>::type;
-
-    completion_handler_type completion_handler;
-    async_result<completion_handler_type> result;
-};
-#else
-using boost::asio::async_completion;
-#endif
-
-template <typename Handler, typename Signature>
-using async_return_type = typename ::boost::asio::async_result<Handler, Signature>::return_type;
 
 } // namespace detail
 } // namespace async

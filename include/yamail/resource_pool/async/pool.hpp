@@ -5,11 +5,14 @@
 #include <yamail/resource_pool/handle.hpp>
 #include <yamail/resource_pool/async/detail/pool_impl.hpp>
 
+#include <boost/asio/async_result.hpp>
 #include <boost/asio/io_context.hpp>
 
 namespace yamail {
 namespace resource_pool {
 namespace async {
+
+namespace asio = boost::asio;
 
 template <class Value, class Mutex, class IoContext>
 struct default_pool_queue {
@@ -103,17 +106,31 @@ public:
     template <class CompletionToken>
     auto get_auto_waste(io_context_t& io_context, CompletionToken&& token,
                         time_traits::duration wait_duration = time_traits::duration(0)) {
-        async_completion<CompletionToken> init(token);
-        get(io_context, std::move(init.completion_handler), &handle::waste, wait_duration);
-        return init.result.get();
+        return boost::asio::async_initiate<CompletionToken, void (boost::system::error_code, handle)>(
+            [this, &io_context, wait_duration] (auto&& completion_handler) mutable {
+                get(
+                    io_context,
+                    std::forward<decltype(completion_handler)>(completion_handler),
+                    &handle::waste,
+                    wait_duration
+                );
+            },
+            token);
     }
 
     template <class CompletionToken>
     auto get_auto_recycle(io_context_t& io_context, CompletionToken&& token,
                           time_traits::duration wait_duration = time_traits::duration(0)) {
-        async_completion<CompletionToken> init(token);
-        get(io_context, std::move(init.completion_handler), &handle::recycle, wait_duration);
-        return init.result.get();
+        return boost::asio::async_initiate<CompletionToken, void (boost::system::error_code, handle)>(
+            [this, &io_context, wait_duration] (auto&& completion_handler) mutable {
+                get(
+                    io_context,
+                    std::forward<decltype(completion_handler)>(completion_handler),
+                    &handle::recycle,
+                    wait_duration
+                );
+            },
+            token);
     }
 
     void invalidate() {
@@ -122,9 +139,6 @@ public:
 
 private:
     using list_iterator = typename pool_impl::list_iterator;
-
-    template <typename CompletionToken>
-    using async_completion = detail::async_completion<CompletionToken, void (boost::system::error_code, handle)>;
 
     template <class UseStrategy, class Handler>
     class on_get_handler {
