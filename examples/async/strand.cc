@@ -4,14 +4,15 @@
 #include <iostream>
 #include <thread>
 #include <memory>
+#include <boost/asio/strand.hpp>
 
 using ofstream_pool = yamail::resource_pool::async::pool<std::unique_ptr<std::ofstream>>;
 using time_traits = yamail::resource_pool::time_traits;
 
 struct on_get {
-    using executor_type = boost::asio::io_context::strand;
+    using executor_type = boost::asio::strand<boost::asio::io_context::executor_type>;
 
-    boost::asio::io_context::strand& strand;
+    executor_type& strand;
 
     void operator ()(const boost::system::error_code& ec, ofstream_pool::handle handle) {
         try {
@@ -45,7 +46,7 @@ struct on_get {
 
 int main() {
     boost::asio::io_context service;
-    boost::asio::io_context::strand strand(service);
+    auto strand = boost::asio::make_strand(service);
     ofstream_pool pool(2, 10);
     pool.get_auto_waste(service, on_get {strand}, time_traits::duration::max());
     pool.get_auto_waste(service, on_get {strand}, time_traits::duration::max());
