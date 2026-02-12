@@ -7,34 +7,24 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         build_type:
         - Release
         - Debug
 
-        deps:
-        - os: ubuntu-20.04
-          compiler: g++-7
-          compiler_package: g++-7
-          boost: '1.67'
+        toolchain:
+        - gcc
+        - clang
 
-        - os: ubuntu-20.04
-          compiler: clang++-7
-          compiler_package: clang-7
-          boost: '1.67'
-
+        boost_line:
         - os: ubuntu-22.04
-          compiler: g++-11
-          compiler_package: g++-11
           boost: '1.74'
+        - os: ubuntu-24.04
+          boost: '1.83'
 
-        - os: ubuntu-22.04
-          compiler: clang++-15
-          compiler_package: clang-15
-          boost: '1.74'
-
-    name: ${{ matrix.build_type }} ${{ matrix.deps.compiler }} boost ${{ matrix.deps.boost }} ${{ matrix.deps.os }}
-    runs-on: ${{ matrix.deps.os }}
+    name: ${{ matrix.build_type }} ${{ matrix.toolchain }} boost ${{ matrix.boost_line.boost }} ${{ matrix.boost_line.os }}
+    runs-on: ${{ matrix.boost_line.os }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -46,19 +36,26 @@ jobs:
       run: >
         sudo apt-get install -y --no-install-recommends
         ccache
+        clang
         cmake
-        libboost-atomic${{ matrix.deps.boost }}-dev
-        libboost-context${{ matrix.deps.boost }}-dev
-        libboost-coroutine${{ matrix.deps.boost }}-dev
-        libboost-date-time${{ matrix.deps.boost }}-dev
-        libboost-thread${{ matrix.deps.boost }}-dev
+        g++
+        libboost-all-dev
+        libgmock-dev
+        libgtest-dev
         ninja-build
-        ${{ matrix.deps.compiler_package }}
+
+    - name: Select compiler
+      run: |
+        if [ "${{ matrix.toolchain }}" = "gcc" ]; then
+          echo "CXX=g++" >> "$GITHUB_ENV"
+        else
+          echo "CXX=clang++" >> "$GITHUB_ENV"
+        fi
 
     - name: Setup ccache
       uses: hendrikmuhs/ccache-action@v1
       with:
-        key: ${{ matrix.deps.os }}-${{ matrix.deps.compiler }}-${{ matrix.deps.boost }}-${{ matrix.build_type }}-v1
+        key: ${{ matrix.boost_line.os }}-${{ matrix.toolchain }}-${{ matrix.boost_line.boost }}-${{ matrix.build_type }}-v2
         max-size: 1G
 
     - name: Configure
@@ -69,13 +66,12 @@ jobs:
         -G Ninja
         -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
         -D CMAKE_INSTALL_PREFIX=${{ github.workspace }}/install
-        -D CMAKE_CXX_COMPILER=${{ matrix.deps.compiler }}
+        -D CMAKE_CXX_COMPILER=${{ env.CXX }}
         -D CMAKE_CXX_COMPILER_LAUNCHER=ccache
         -D RESOURCE_POOL_BUILD_TESTS=ON
         -D RESOURCE_POOL_BUILD_EXAMPLES=ON
-        -D RESOURCE_POOL_BUILD_BENCHMARKS=ON
-        -D RESOURCE_POOL_USE_SYSTEM_GOOGLETEST=OFF
-        -D RESOURCE_POOL_USE_SYSTEM_BENCHMARK=OFF
+        -D RESOURCE_POOL_BUILD_BENCHMARKS=OFF
+        -D RESOURCE_POOL_USE_SYSTEM_GOOGLETEST=ON
 
     - name: Build
       run: cmake --build build
@@ -84,13 +80,13 @@ jobs:
       run: cmake --install build
 
     - name: Run tests
-      run: build/tests/resource_pool_test
-
-    - name: Run benchmark
-      run: build/benchmarks/resource_pool_benchmark_async
+      run: ctest --test-dir build --output-on-failure
 
     - name: Run async_pool example
       run: build/examples/async_pool
+
+    - name: Run async regression smoke
+      run: build/examples/async_regression
 
     - name: Run async_strand example
       run: build/examples/async_strand
@@ -116,11 +112,7 @@ jobs:
         sudo apt-get install -y --no-install-recommends
         clang-15
         cmake
-        libboost-atomic1.74-dev
-        libboost-context1.74-dev
-        libboost-coroutine1.74-dev
-        libboost-date-time1.74-dev
-        libboost-thread1.74-dev
+        libboost-all-dev
         python3
         python3-pip
 
